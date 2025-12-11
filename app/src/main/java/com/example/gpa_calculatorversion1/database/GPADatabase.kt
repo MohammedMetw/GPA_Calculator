@@ -7,13 +7,10 @@ import androidx.room.RoomDatabase
 
 @Database(entities = [CourseEntity::class], version = 1, exportSchema = false)
 abstract class GPADatabase : RoomDatabase() {
-
     abstract fun courseDao(): CourseDao
-
     companion object {
         @Volatile
         private var INSTANCE: GPADatabase? = null
-
         fun getDatabase(context: Context): GPADatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
