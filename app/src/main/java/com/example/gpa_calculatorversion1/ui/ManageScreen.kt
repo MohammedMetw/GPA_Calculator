@@ -3,6 +3,7 @@ package com.example.gpa_calculatorversion1.ui
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
@@ -13,25 +14,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.gpa_calculatorversion1.database.CourseEntity
 import com.example.gpa_calculatorversion1.viewmodel.MainViewModel
-                                // for testing
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.foundation.clickable
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ManageScreen(
     viewModel: MainViewModel,
     onBackClicked: () -> Unit
 ) {
-
-    var showAddDialog by remember { mutableStateOf(false) }
-
-
-    var courseName by remember { mutableStateOf("") }
-    var creditHours by remember { mutableStateOf("") }
-    var selectedGrade by remember { mutableStateOf("A") }
-    var selectedSemester by remember { mutableStateOf("Semester 1") }
-
-
     val semesters by viewModel.semestersList.collectAsState()
 
     Scaffold(
@@ -44,102 +40,213 @@ fun ManageScreen(
                     }
                 }
             )
-        },
-        floatingActionButton = {
-            FloatingActionButton(onClick = { showAddDialog = true }) {
-                Icon(Icons.Default.Add, contentDescription = "Add Course")
-            }
         }
     ) { padding ->
 
-        Column(modifier = Modifier.padding(padding).padding(16.dp)) {
-            if (semesters.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("No courses added. Click + to start.", color = Color.Gray)
+        LazyColumn(
+            modifier = Modifier
+                .padding(padding)
+                .padding(16.dp)
+                .fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
+            items(semesters) { semesterGroup ->
+                SemesterSection(
+                    semesterName = semesterGroup.semesterName,
+                    courses = semesterGroup.courses,
+                    onDeleteSemester = { viewModel.deleteSemesterAndReorder(semesterGroup.semesterName) },
+                    onAddCourse = { viewModel.addOneCourseToSemester(semesterGroup.semesterName) },
+                    onUpdateCourse = { viewModel.updateCourse(it) },
+                    onDeleteCourse = { viewModel.deleteCourse(it) }
+                )
+            }
+
+            item {
+                Button(
+                    onClick = { viewModel.addNextSemester() },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Add Semester")
                 }
-            } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    items(semesters) { semesterGroup ->
+                Spacer(modifier = Modifier.height(32.dp)) // Extra space at bottom
+            }
+        }
+    }
+}
 
-                        Text(
-                            text = semesterGroup.semesterName,
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Bold
-                        )
+@Composable
+fun SemesterSection(
+    semesterName: String,
+    courses: List<CourseEntity>,
+    onDeleteSemester: () -> Unit,
+    onAddCourse: () -> Unit,
+    onUpdateCourse: (CourseEntity) -> Unit,
+    onDeleteCourse: (CourseEntity) -> Unit
+) {
 
-                        semesterGroup.courses.forEach { course ->
-                            Card(
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5))
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(12.dp).fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column {
-                                        Text(course.courseName, fontWeight = FontWeight.Bold)
-                                        Text("${course.creditHours} Hours | Grade: ${course.gradeLetter}", style = MaterialTheme.typography.bodySmall)
-                                    }
-                                    IconButton(onClick = { viewModel.deleteCourse(course) }) {
-                                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red)
-                                    }
-                                }
-                            }
+    var isExpanded by remember { mutableStateOf(true) }
+
+    Card(
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFF9F9F9)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { isExpanded = !isExpanded },
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        contentDescription = if (isExpanded) "Collapse" else "Expand",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Text(
+                        text = semesterName,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                IconButton(onClick = onDeleteSemester) {
+                    Icon(Icons.Default.Delete, contentDescription = "Delete Semester", tint = Color.Gray)
+                }
+            }
+
+            if (isExpanded) {
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
+                    Text("Course", fontSize = 12.sp, color = Color.Gray, modifier = Modifier.weight(1.3f).padding(start = 4.dp))
+                    Text("Hrs", fontSize = 12.sp, color = Color.Gray, modifier = Modifier.weight(0.5f))
+                    Text("Grade", fontSize = 12.sp, color = Color.Gray, modifier = Modifier.weight(1.2f))
+                    Spacer(modifier = Modifier.width(32.dp))
+                }
+
+                courses.forEach { course ->
+                    InlineCourseRow(
+                        course = course,
+                        onUpdate = onUpdateCourse,
+                        onDelete = { onDeleteCourse(course) }
+                    )
+                    Divider(color = Color.LightGray.copy(alpha = 0.5f), modifier = Modifier.padding(vertical = 8.dp))
+                }
+
+                TextButton(
+                    onClick = onAddCourse,
+                    modifier = Modifier.align(Alignment.Start)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Add Course")
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun InlineCourseRow(
+    course: CourseEntity,
+    onUpdate: (CourseEntity) -> Unit,
+    onDelete: () -> Unit
+) {
+    val gradeOptions = listOf("A+", "A", "A-", "B+", "B", "B-", "C+", "C", "C-", "D+", "D", "F")
+    var expanded by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        OutlinedTextField(
+            value = course.courseName,
+            onValueChange = { onUpdate(course.copy(courseName = it)) },
+            placeholder = { Text("Course Name", fontSize = 10.sp) },
+            modifier = Modifier.weight(1.3f),
+            singleLine = true,
+            textStyle = LocalTextStyle.current.copy(fontSize = 12.sp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = Color.White,
+                unfocusedContainerColor = Color.White
+            )
+        )
+
+        OutlinedTextField(
+            value = if (course.creditHours == 0) "" else course.creditHours.toString(),
+            onValueChange = {
+                val newHours = it.filter { char -> char.isDigit() }.toIntOrNull() ?: 0
+                onUpdate(course.copy(creditHours = newHours))
+            },
+            placeholder = { Text("Hrs", fontSize = 10.sp) },
+            modifier = Modifier.weight(0.5f),
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            textStyle = LocalTextStyle.current.copy(fontSize = 12.sp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = Color.White,
+                unfocusedContainerColor = Color.White
+            )
+        )
+
+        ExposedDropdownMenuBox(
+            expanded = expanded,
+            onExpandedChange = { expanded = !expanded },
+            modifier = Modifier.weight(1.2f)
+        ) {
+            OutlinedTextField(
+                value = course.gradeLetter,
+                onValueChange = {},
+                readOnly = true,
+                placeholder = { Text("Grade", fontSize = 10.sp) },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                modifier = Modifier
+                    .menuAnchor()
+                    .fillMaxWidth(),
+                singleLine = true,
+                textStyle = LocalTextStyle.current.copy(fontSize = 12.sp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Color.White
+                )
+            )
+
+            ExposedDropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                gradeOptions.forEach { grade ->
+                    DropdownMenuItem(
+                        text = { Text(text = grade) },
+                        onClick = {
+                            onUpdate(course.copy(gradeLetter = grade))
+                            expanded = false
                         }
-                        HorizontalDivider()
-                    }
+                    )
                 }
             }
         }
 
-
-        if (showAddDialog) {
-            AlertDialog(
-                onDismissRequest = { showAddDialog = false },
-                title = { Text("Add New Course") },
-                text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(
-                            value = courseName,
-                            onValueChange = { courseName = it },
-                            label = { Text("Course Name") }
-                        )
-                        OutlinedTextField(
-                            value = creditHours,
-                            onValueChange = { creditHours = it },
-                            label = { Text("Credit Hours (e.g. 3)") },
-                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number)
-                        )
-
-                        OutlinedTextField(
-                            value = selectedGrade,
-                            onValueChange = { selectedGrade = it },
-                            label = { Text("Grade (A, B, C...)") }
-                        )
-                        OutlinedTextField(
-                            value = selectedSemester,
-                            onValueChange = { selectedSemester = it },
-                            label = { Text("Semester (e.g. Sem 1)") }
-                        )
-                    }
-                },
-                confirmButton = {
-                    Button(onClick = {
-                        if (courseName.isNotEmpty() && creditHours.isNotEmpty()) {
-                            viewModel.addCourse(courseName, creditHours.toIntOrNull() ?: 0, selectedGrade, selectedSemester)
-                            showAddDialog = false
-                            courseName = ""
-                            creditHours = ""
-                        }
-                    }) {
-                        Text("Save")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showAddDialog = false }) { Text("Cancel") }
-                }
+        IconButton(
+            onClick = onDelete,
+            modifier = Modifier.size(24.dp)
+        ) {
+            Icon(
+                Icons.Default.Delete,
+                contentDescription = "Remove Course",
+                tint = Color.Red.copy(alpha = 0.6f)
             )
         }
     }
