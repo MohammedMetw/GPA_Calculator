@@ -174,10 +174,10 @@ fun InlineCourseRow(
         OutlinedTextField(
             value = course.courseName,
             onValueChange = { onUpdate(course.copy(courseName = it)) },
-            placeholder = { Text("Course Name", fontSize = 10.sp) },
+            placeholder = { Text("Course Name", fontSize = 15.sp) },
             modifier = Modifier.weight(1.3f),
             singleLine = true,
-            textStyle = LocalTextStyle.current.copy(fontSize = 12.sp),
+            textStyle = LocalTextStyle.current.copy(fontSize = 15.sp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedContainerColor = Color.White,
                 unfocusedContainerColor = Color.White
@@ -190,11 +190,11 @@ fun InlineCourseRow(
                 val newHours = it.filter { char -> char.isDigit() }.toIntOrNull() ?: 0
                 onUpdate(course.copy(creditHours = newHours))
             },
-            placeholder = { Text("Hrs", fontSize = 10.sp) },
+            placeholder = { Text("Hrs", fontSize = 11.sp) },
             modifier = Modifier.weight(0.5f),
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            textStyle = LocalTextStyle.current.copy(fontSize = 12.sp),
+            textStyle = LocalTextStyle.current.copy(fontSize = 20.sp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedContainerColor = Color.White,
                 unfocusedContainerColor = Color.White
@@ -210,13 +210,13 @@ fun InlineCourseRow(
                 value = course.gradeLetter,
                 onValueChange = {},
                 readOnly = true,
-                placeholder = { Text("Grade", fontSize = 10.sp) },
+                placeholder = { Text("Grade", fontSize = 15.sp) },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                 modifier = Modifier
                     .menuAnchor()
                     .fillMaxWidth(),
                 singleLine = true,
-                textStyle = LocalTextStyle.current.copy(fontSize = 12.sp),
+                textStyle = LocalTextStyle.current.copy(fontSize = 20.sp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedContainerColor = Color.White,
                     unfocusedContainerColor = Color.White

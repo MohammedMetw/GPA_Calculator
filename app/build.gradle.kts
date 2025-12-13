@@ -68,4 +68,7 @@ dependencies {
     implementation(libs.androidx.material3)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+
+    implementation("androidx.biometric:biometric:1.1.0")
+    implementation("androidx.compose.material:material-icons-extended:1.5.4")
 }

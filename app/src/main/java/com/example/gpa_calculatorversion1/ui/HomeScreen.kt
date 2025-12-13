@@ -1,91 +1,167 @@
 package com.example.gpa_calculatorversion1.ui
 
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.*
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
-import androidx.compose.foundation.layout.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.runtime.Composable
 import androidx.compose.ui.text.font.FontWeight
-
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.gpa_calculatorversion1.utils.SettingsManager
 import com.example.gpa_calculatorversion1.viewmodel.MainViewModel
 import com.example.gpa_calculatorversion1.viewmodel.SemesterGroup
+import androidx.compose.material.icons.filled.LockOpen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     viewModel: MainViewModel,
+    settingsManager: SettingsManager,
     onManageClicked: () -> Unit,
-    onTargetGPAClicked: () -> Unit
+    onTargetGPAClicked: () -> Unit,
+    onInfoClicked: () -> Unit
 ) {
     val cgpa by viewModel.totalCGPA.collectAsState()
     val semesters by viewModel.semestersList.collectAsState()
+    var showSetupDialog by remember { mutableStateOf(false) }
+    var showDisableDialog by remember { mutableStateOf(false) }
+    var isBiometricActive by remember { mutableStateOf(settingsManager.isBiometricEnabled()) }
 
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text("My GPA Dashboard", fontWeight = FontWeight.Bold) },
+                actions = {
+                    IconButton(onClick = onInfoClicked) {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = "Grading Info",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    IconButton(onClick = {
+                        if (isBiometricActive) {
+                            showDisableDialog = true
+                        } else {
+                            showSetupDialog = true
+                        }
+                    }) {
+                        Icon(
+                            imageVector = if (isBiometricActive) Icons.Default.Lock else Icons.Default.LockOpen,
+                            contentDescription = "Security Settings",
+                            tint = if (isBiometricActive) Color(0xFF4CAF50) else Color.Gray
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer
                 )
             )
         }
     ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            CGPACard(cgpa = cgpa)
-            Spacer(modifier = Modifier.height(24.dp))
-            Text(
-                text = "Semesters Summary",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.align(Alignment.Start)
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-
-            LazyColumn(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+        Box(modifier = Modifier.padding(paddingValues).fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                items(semesters) { semester ->
-                    SemesterSummaryCard(semester)
+                CGPACard(cgpa = cgpa)
+                Spacer(modifier = Modifier.height(24.dp))
+                Text(
+                    text = "Semesters Summary",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.align(Alignment.Start)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    items(semesters) { semester ->
+                        SemesterSummaryCard(semester)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Button(
+                        onClick = onManageClicked,
+                        modifier = Modifier.weight(1f).height(56.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E88E5))
+                    ) {
+                        Text(
+                            "Add / Edit\nSemester",
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
+
+                    Button(
+                        onClick = onTargetGPAClicked,
+                        modifier = Modifier.weight(1f).height(56.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF43A047))
+                    ) {
+                        Text(
+                            "Target\nGPA",
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Button(
-                    onClick = onManageClicked,
-                    modifier = Modifier.weight(1f).height(56.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E88E5))
-                ) {
-                    Text("Add / Edit\nSemester", textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-                }
+            if (showSetupDialog) {
+                PinInputDialog(
+                    title = "Set New PIN to Enable Security",
+                    onPinSubmit = { newPin ->
+                        settingsManager.setPin(newPin)
+                        settingsManager.setBiometricEnabled(true)
+                        isBiometricActive = true
+                        showSetupDialog = false
+                    },
+                    onDismiss = { showSetupDialog = false }
+                )
+            }
 
-                Button(
-                    onClick = onTargetGPAClicked,
-                    modifier = Modifier.weight(1f).height(56.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF43A047))
-                ) {
-                    Text("Target\nGPA", textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-                }
+
+            if (showDisableDialog) {
+                AlertDialog(
+                    onDismissRequest = { showDisableDialog = false },
+                    title = { Text("Disable Security?") },
+                    text = { Text("This will remove the fingerprint lock protection.") },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                settingsManager.setBiometricEnabled(false)
+                                isBiometricActive = false
+                                showDisableDialog = false
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                        ) {
+                            Text("Disable")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showDisableDialog = false }) {
+                            Text("Cancel")
+                        }
+                    }
+                )
             }
         }
     }
