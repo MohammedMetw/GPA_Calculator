@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.gpa_calculatorversion1.database.CourseEntity
+import com.example.gpa_calculatorversion1.database.CourseDao
 import com.example.gpa_calculatorversion1.database.GPADatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
@@ -14,9 +15,13 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class MainViewModel(application: Application) : AndroidViewModel(application) {
+class MainViewModel @JvmOverloads constructor(
 
-    private val dao = GPADatabase.getDatabase(application).courseDao()
+    application: Application,
+    private val dao: CourseDao = GPADatabase.getDatabase(application).courseDao()
+
+) : AndroidViewModel(application) {
+
 
     private val allCoursesRaw = dao.getAllCourses()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())

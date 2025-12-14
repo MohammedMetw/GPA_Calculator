@@ -1,0 +1,424 @@
+Subject: [PATCH] testing
+---
+Index: .idea/deploymentTargetSelector.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/deploymentTargetSelector.xml b/.idea/deploymentTargetSelector.xml
+--- a/.idea/deploymentTargetSelector.xml	(revision 2169e5918b067bdb8c0340e3a01b9213cdfa66e2)
++++ b/.idea/deploymentTargetSelector.xml	(date 1765648768346)
+@@ -5,6 +5,12 @@
+       <SelectionState runConfigName="app">
+         <option name="selectionMode" value="DROPDOWN" />
+       </SelectionState>
++      <SelectionState runConfigName="NavigationUiTest">
++        <option name="selectionMode" value="DROPDOWN" />
++      </SelectionState>
++      <SelectionState runConfigName="CourseDaoInstrumentedTest">
++        <option name="selectionMode" value="DROPDOWN" />
++      </SelectionState>
+     </selectionStates>
+   </component>
+ </project>
+\ No newline at end of file
+Index: app/src/test/java/com/example/gpa_calculatorversion1/viewmodel/MainViewModelTest.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app/src/test/java/com/example/gpa_calculatorversion1/viewmodel/MainViewModelTest.kt b/app/src/test/java/com/example/gpa_calculatorversion1/viewmodel/MainViewModelTest.kt
+new file mode 100644
+--- /dev/null	(date 1765645405541)
++++ b/app/src/test/java/com/example/gpa_calculatorversion1/viewmodel/MainViewModelTest.kt	(date 1765645405541)
+@@ -0,0 +1,116 @@
++package com.example.gpa_calculatorversion1.viewmodel
++
++import android.app.Application
++import com.example.gpa_calculatorversion1.database.CourseDao
++import com.example.gpa_calculatorversion1.database.CourseEntity
++import kotlinx.coroutines.ExperimentalCoroutinesApi
++import kotlinx.coroutines.flow.MutableStateFlow
++import kotlinx.coroutines.test.advanceUntilIdle
++import kotlinx.coroutines.test.runTest
++import org.junit.Assert.assertEquals
++import org.junit.Rule
++import org.junit.Test
++import org.junit.runner.RunWith
++import org.mockito.Mock
++import org.mockito.Mockito
++import org.mockito.junit.MockitoJUnitRunner
++import kotlinx.coroutines.launch
++
++
++@OptIn(ExperimentalCoroutinesApi::class)
++@RunWith(MockitoJUnitRunner::class)
++class MainViewModelTest {
++
++    @get:Rule
++    val mainDispatcherRule = MainDispatcherRule()
++
++    @Mock
++    lateinit var dao: CourseDao
++
++    private fun course(
++        id: Int,
++        name: String,
++        hours: Int,
++        grade: String,
++        semester: String
++    ) = CourseEntity(
++        id = id,
++        courseName = name,
++        creditHours = hours,
++        gradeLetter = grade,
++        semester = semester
++    )
++
++    @Test
++    fun totalCGPA_calculatesWeightedGpa_correctly() = runTest {
++        val flow = MutableStateFlow(
++            listOf(
++                course(1, "Math", 3, "A", "Semester 1"),   // 4.0 * 3 = 12
++                course(2, "Physics", 3, "B", "Semester 1") // 3.0 * 3 = 9  => 21/6 = 3.5
++            )
++        )
++        Mockito.`when`(dao.getAllCourses()).thenReturn(flow)
++
++        val viewModel = MainViewModel(Application(), dao)
++        val job = launch { viewModel.totalCGPA.collect { } }
++        advanceUntilIdle()
++
++        assertEquals(3.5, viewModel.totalCGPA.value, 0.0001)
++
++        job.cancel()
++
++        // Mockito verify (Lab-style)
++        Mockito.verify(dao, Mockito.atLeastOnce()).getAllCourses()
++    }
++
++    @Test
++    fun totalCGPA_ignoresIncompleteCourses() = runTest {
++        val flow = MutableStateFlow(
++            listOf(
++                course(1, "Complete", 3, "A", "Semester 1"),
++                course(2, "NoGrade", 3, "", "Semester 1"),      // ignored
++                course(3, "NoHours", 0, "A", "Semester 1")      // ignored
++            )
++        )
++        Mockito.`when`(dao.getAllCourses()).thenReturn(flow)
++
++        val viewModel = MainViewModel(Application(), dao)
++        val job = launch { viewModel.totalCGPA.collect { } }
++
++        advanceUntilIdle()
++
++        // Only first course counts => 4.0
++        assertEquals(4.0, viewModel.totalCGPA.value, 0.0001)
++
++
++        job.cancel()
++    }
++
++    @Test
++    fun semestersList_groupsBySemester_andSortsByNumber() = runTest {
++        val flow = MutableStateFlow(
++            listOf(
++                course(10, "Later", 3, "B", "Semester 2"),
++                course(1, "Earlier", 3, "A", "Semester 1")
++            )
++        )
++        Mockito.`when`(dao.getAllCourses()).thenReturn(flow)
++
++        val viewModel = MainViewModel(Application(), dao)
++
++        val job = launch { viewModel.semestersList.collect { } }  // ✅ collect first
++        advanceUntilIdle()
++
++        val semesters = viewModel.semestersList.value
++        assertEquals(2, semesters.size)
++
++        assertEquals("Semester 1", semesters[0].semesterName)
++        assertEquals(4.0, semesters[0].semesterGPA, 0.0001)
++
++        assertEquals("Semester 2", semesters[1].semesterName)
++        assertEquals(3.0, semesters[1].semesterGPA, 0.0001)
++
++        job.cancel()
++    }
++
++}
+Index: app/src/main/java/com/example/gpa_calculatorversion1/viewmodel/MainViewModel.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app/src/main/java/com/example/gpa_calculatorversion1/viewmodel/MainViewModel.kt b/app/src/main/java/com/example/gpa_calculatorversion1/viewmodel/MainViewModel.kt
+--- a/app/src/main/java/com/example/gpa_calculatorversion1/viewmodel/MainViewModel.kt	(revision 2169e5918b067bdb8c0340e3a01b9213cdfa66e2)
++++ b/app/src/main/java/com/example/gpa_calculatorversion1/viewmodel/MainViewModel.kt	(date 1765642588689)
+@@ -4,6 +4,7 @@
+ import androidx.lifecycle.AndroidViewModel
+ import androidx.lifecycle.viewModelScope
+ import com.example.gpa_calculatorversion1.database.CourseEntity
++import com.example.gpa_calculatorversion1.database.CourseDao
+ import com.example.gpa_calculatorversion1.database.GPADatabase
+ import kotlinx.coroutines.Dispatchers
+ import kotlinx.coroutines.flow.SharingStarted
+@@ -14,9 +15,13 @@
+ import kotlinx.coroutines.launch
+ import kotlinx.coroutines.withContext
+ 
+-class MainViewModel(application: Application) : AndroidViewModel(application) {
++class MainViewModel @JvmOverloads constructor(
++
++    application: Application,
++    private val dao: CourseDao = GPADatabase.getDatabase(application).courseDao()
+ 
+-    private val dao = GPADatabase.getDatabase(application).courseDao()
++) : AndroidViewModel(application) {
++
+ 
+     private val allCoursesRaw = dao.getAllCourses()
+         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+Index: app/src/test/java/com/example/gpa_calculatorversion1/viewmodel/MainDispatcherRule.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app/src/test/java/com/example/gpa_calculatorversion1/viewmodel/MainDispatcherRule.kt b/app/src/test/java/com/example/gpa_calculatorversion1/viewmodel/MainDispatcherRule.kt
+new file mode 100644
+--- /dev/null	(date 1765645050424)
++++ b/app/src/test/java/com/example/gpa_calculatorversion1/viewmodel/MainDispatcherRule.kt	(date 1765645050424)
+@@ -0,0 +1,24 @@
++package com.example.gpa_calculatorversion1.viewmodel
++
++import kotlinx.coroutines.Dispatchers
++import kotlinx.coroutines.ExperimentalCoroutinesApi
++import kotlinx.coroutines.test.TestDispatcher
++import kotlinx.coroutines.test.UnconfinedTestDispatcher
++import kotlinx.coroutines.test.resetMain
++import kotlinx.coroutines.test.setMain
++import org.junit.rules.TestWatcher
++import org.junit.runner.Description
++
++@OptIn(ExperimentalCoroutinesApi::class)
++class MainDispatcherRule(
++    val dispatcher: TestDispatcher = UnconfinedTestDispatcher()
++) : TestWatcher() {
++
++    override fun starting(description: Description) {
++        Dispatchers.setMain(dispatcher)
++    }
++
++    override fun finished(description: Description) {
++        Dispatchers.resetMain()
++    }
++}
+Index: .idea/gradle.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/gradle.xml b/.idea/gradle.xml
+--- a/.idea/gradle.xml	(revision 2169e5918b067bdb8c0340e3a01b9213cdfa66e2)
++++ b/.idea/gradle.xml	(date 1765637821750)
+@@ -1,5 +1,6 @@
+ <?xml version="1.0" encoding="UTF-8"?>
+ <project version="4">
++  <component name="GradleMigrationSettings" migrationVersion="1" />
+   <component name="GradleSettings">
+     <option name="linkedExternalProjectsSettings">
+       <GradleProjectSettings>
+Index: app/src/androidTest/java/com/example/gpa_calculatorversion1/database/CourseDaoInstrumentedTest.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app/src/androidTest/java/com/example/gpa_calculatorversion1/database/CourseDaoInstrumentedTest.kt b/app/src/androidTest/java/com/example/gpa_calculatorversion1/database/CourseDaoInstrumentedTest.kt
+new file mode 100644
+--- /dev/null	(date 1765643525482)
++++ b/app/src/androidTest/java/com/example/gpa_calculatorversion1/database/CourseDaoInstrumentedTest.kt	(date 1765643525482)
+@@ -0,0 +1,88 @@
++package com.example.gpa_calculatorversion1.database
++
++import android.content.Context
++import androidx.room.Room
++import androidx.test.core.app.ApplicationProvider
++import androidx.test.ext.junit.runners.AndroidJUnit4
++import kotlinx.coroutines.flow.first
++import kotlinx.coroutines.runBlocking
++import org.junit.After
++import org.junit.Assert.assertEquals
++import org.junit.Before
++import org.junit.Test
++import org.junit.runner.RunWith
++
++@RunWith(AndroidJUnit4::class)
++class CourseDaoInstrumentedTest {
++
++    private lateinit var db: GPADatabase
++    private lateinit var dao: CourseDao
++
++    @Before
++    fun setup() {
++        val context = ApplicationProvider.getApplicationContext<Context>()
++        db = Room.inMemoryDatabaseBuilder(context, GPADatabase::class.java)
++            .allowMainThreadQueries()
++            .build()
++        dao = db.courseDao()
++    }
++
++    @After
++    fun teardown() {
++        db.close()
++    }
++
++    @Test
++    fun insertCourse_thenReadAll() = runBlocking {
++        dao.insertCourse(
++            CourseEntity(courseName = "Math", creditHours = 3, gradeLetter = "A", semester = "Semester 1")
++        )
++
++        val all = dao.getAllCourses().first()
++        assertEquals(1, all.size)
++        assertEquals("Math", all[0].courseName)
++    }
++
++    @Test
++    fun updateCourse_updatesStoredValues() = runBlocking {
++        dao.insertCourse(
++            CourseEntity(courseName = "Physics", creditHours = 3, gradeLetter = "A", semester = "Semester 1")
++        )
++
++        val inserted = dao.getAllCourses().first().single()
++        dao.updateCourse(inserted.copy(gradeLetter = "B"))
++
++        val updated = dao.getAllCourses().first().single()
++        assertEquals("B", updated.gradeLetter)
++    }
++
++    @Test
++    fun deleteCourse_removesIt() = runBlocking {
++        dao.insertCourse(
++            CourseEntity(courseName = "CS", creditHours = 4, gradeLetter = "A", semester = "Semester 1")
++        )
++
++        val inserted = dao.getAllCourses().first().single()
++        dao.deleteCourse(inserted)
++
++        val all = dao.getAllCourses().first()
++        assertEquals(0, all.size)
++    }
++
++    @Test
++    fun deleteSemester_deletesOnlyThatSemester() = runBlocking {
++        dao.insertAll(
++            listOf(
++                CourseEntity(courseName = "A", creditHours = 3, gradeLetter = "A", semester = "Semester 1"),
++                CourseEntity(courseName = "B", creditHours = 3, gradeLetter = "B", semester = "Semester 1"),
++                CourseEntity(courseName = "C", creditHours = 3, gradeLetter = "C", semester = "Semester 2")
++            )
++        )
++
++        dao.deleteSemester("Semester 1")
++
++        val all = dao.getAllCourses().first()
++        assertEquals(1, all.size)
++        assertEquals("Semester 2", all[0].semester)
++    }
++}
+Index: app/build.gradle.kts
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app/build.gradle.kts b/app/build.gradle.kts
+--- a/app/build.gradle.kts	(revision 2169e5918b067bdb8c0340e3a01b9213cdfa66e2)
++++ b/app/build.gradle.kts	(date 1765646962630)
+@@ -68,4 +68,20 @@
+     implementation(libs.androidx.material3)
+     debugImplementation(libs.androidx.ui.tooling)
+     debugImplementation(libs.androidx.ui.test.manifest)
++
++    testImplementation(libs.junit)
++    testImplementation("org.mockito:mockito-core:5.11.0")
++
++    // For runTest, advanceUntilIdle, setting Dispatchers.Main in unit tests:
++    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
++
++    androidTestImplementation("androidx.test.ext:junit:1.1.5")
++    androidTestImplementation("androidx.test:core-ktx:1.5.0")
++
++    androidTestImplementation(platform(libs.androidx.compose.bom))
++    androidTestImplementation(libs.androidx.ui.test.junit4)
++    debugImplementation(libs.androidx.ui.test.manifest)
++
++    androidTestImplementation(libs.androidx.junit)
++    androidTestImplementation(libs.androidx.espresso.core)
+ }
+Index: app/src/androidTest/java/com/example/gpa_calculatorversion1/ui/NavigationUiTest.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app/src/androidTest/java/com/example/gpa_calculatorversion1/ui/NavigationUiTest.kt b/app/src/androidTest/java/com/example/gpa_calculatorversion1/ui/NavigationUiTest.kt
+new file mode 100644
+--- /dev/null	(date 1765647004899)
++++ b/app/src/androidTest/java/com/example/gpa_calculatorversion1/ui/NavigationUiTest.kt	(date 1765647004899)
+@@ -0,0 +1,43 @@
++package com.example.gpa_calculatorversion1.ui
++
++import androidx.compose.ui.test.assertIsDisplayed
++import androidx.compose.ui.test.junit4.createAndroidComposeRule
++import androidx.compose.ui.test.onNodeWithContentDescription
++import androidx.compose.ui.test.onNodeWithText
++import androidx.compose.ui.test.performClick
++import androidx.test.ext.junit.runners.AndroidJUnit4
++import com.example.gpa_calculatorversion1.MainActivity
++import org.junit.Rule
++import org.junit.Test
++import org.junit.runner.RunWith
++
++@RunWith(AndroidJUnit4::class)
++class NavigationUiTest {
++
++    @get:Rule
++    val composeRule = createAndroidComposeRule<MainActivity>()
++
++    @Test
++    fun home_to_manage_and_back_works() {
++        // Home screen visible
++        composeRule.onNodeWithText("My GPA Dashboard").assertIsDisplayed()
++
++        // Click button (text contains a newline in your UI, so use substring)
++        composeRule.onNodeWithText("Add / Edit", substring = true).performClick()
++
++        // Manage screen visible
++        composeRule.onNodeWithText("Manage Courses").assertIsDisplayed()
++
++        // Tap back icon (you set contentDescription="Back" in ManageScreen)
++        composeRule.onNodeWithContentDescription("Back").performClick()
++
++        // Back on home
++        composeRule.onNodeWithText("My GPA Dashboard").assertIsDisplayed()
++    }
++
++    @Test
++    fun home_shows_cgpa_card_label() {
++        // Simple UI assertion that's easy to explain/demo
++        composeRule.onNodeWithText("Total CGPA").assertIsDisplayed()
++    }
++}
+Index: .idea/misc.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/misc.xml b/.idea/misc.xml
+--- a/.idea/misc.xml	(revision 2169e5918b067bdb8c0340e3a01b9213cdfa66e2)
++++ b/.idea/misc.xml	(date 1765658032778)
+@@ -1,4 +1,3 @@
+-<?xml version="1.0" encoding="UTF-8"?>
+ <project version="4">
+   <component name="ExternalStorageConfigurationManager" enabled="true" />
+   <component name="ProjectRootManager" version="2" languageLevel="JDK_21" default="true" project-jdk-name="jbr-21" project-jdk-type="JavaSDK">
