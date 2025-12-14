@@ -20,13 +20,17 @@ import com.example.gpa_calculatorversion1.ui.InfoScreen
 import com.example.gpa_calculatorversion1.ui.ManageScreen
 import com.example.gpa_calculatorversion1.utils.SettingsManager
 import com.example.gpa_calculatorversion1.ui.PinInputDialog
+import com.example.gpa_calculatorversion1.ui.TargetGpaScreen
 import com.example.gpa_calculatorversion1.viewmodel.MainViewModel
 
 
 enum class CurrentScreen {
     HOME,
     MANAGE,
-    INFO
+    INFO,
+
+    TARGET_GPA
+
 }
 
 class MainActivity : FragmentActivity() {
@@ -110,13 +114,7 @@ class MainActivity : FragmentActivity() {
                                 currentScreen = CurrentScreen.MANAGE
                             },
                             onTargetGPAClicked = {
-                                val packageName = "com.example.gpa_calculatorversion1.targetgpa"
-                                val intent = packageManager.getLaunchIntentForPackage(packageName)
-                                if (intent != null) {
-                                    startActivity(intent)
-                                } else {
-                                    Toast.makeText(this@MainActivity, "Target GPA module not found", Toast.LENGTH_SHORT).show()
-                                }
+                                currentScreen = CurrentScreen.TARGET_GPA
                             },
                             onInfoClicked = {
                                 currentScreen = CurrentScreen.INFO
@@ -134,6 +132,13 @@ class MainActivity : FragmentActivity() {
                     CurrentScreen.INFO -> {
                         InfoScreen(
                             onBackClicked = {
+                                currentScreen = CurrentScreen.HOME
+                            }
+                        )
+                    }
+                    CurrentScreen.TARGET_GPA -> {
+                        TargetGpaScreen(
+                            onBack = {
                                 currentScreen = CurrentScreen.HOME
                             }
                         )
